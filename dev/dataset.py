@@ -74,8 +74,8 @@ class CustomImageDataset(Dataset):
     def __getitem__(self, idx):
         filename = self.image_files[idx]
         img_path = os.path.join(self.image_dir, filename)
-        image = Image.open(img_path).convert("RGB")
-        image_positive = self._apply_augmentations(image)
+        image_anchor = Image.open(img_path).convert("RGB")
+        image_positive = self._apply_augmentations(image_anchor)
         while True:
             negative_filename = self.image_files[random.randint(0, len(self.image_files) - 1)]
             if negative_filename != filename:
@@ -85,13 +85,13 @@ class CustomImageDataset(Dataset):
 
         
         if self.transform:
-            image = self.transform(image)
+            image_anchor = self.transform(image_anchor)
             image_positive = self.transform(image_positive)
             image_negative = self.transform(image_negative)
             
         card_id = filename.split(".")[0]
 
-        return image, image_positive, image_negative, card_id, negative_card_id
+        return (image_anchor, card_id), (image_positive, card_id), (image_negative, negative_card_id)
 
 # transform = transforms.Compose([
 #     transforms.Resize((255,255)),
@@ -101,7 +101,7 @@ class CustomImageDataset(Dataset):
 # dataset = CustomImageDataset(image_dir=os.path.abspath(IMAGES_DIR), transform=transform)
 # dataloader = DataLoader(dataset, batch_size=16, shuffle=True)
 
-# for images, images_pos, images_neg, ids, neg_ids in dataloader:
+# for (images, images_pos, images_neg, ids, neg_ids in dataloader:
 #     print(images.shape)  # [batch, 3, 255, 255]
 #     print(ids)           # IDs string list
 #     print(neg_ids)       # Negative IDs string list
