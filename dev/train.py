@@ -14,7 +14,7 @@ class SiameseNetwork(nn.Module):
     def __init__(self):
         super(SiameseNetwork, self).__init__()
         #self.resnet = models.resnet152(pretrained=True)
-        self.resnet = models.resnet101(pretrained=True)
+        self.resnet = models.resnet101()
         #self.resnet = models.resnet50(pretrained=True)
 
         #self.resnet = torch.nn.Sequential(*(list(self.resnet.children())[:-1]))
@@ -51,20 +51,21 @@ class TripletLoss(nn.Module):
         pos_dist = (anchor - positive).pow(2).sum(1)  # Squared distance
         neg_dist = (anchor - negative).pow(2).sum(1)  # Squared distance
         losses = F.relu(pos_dist - neg_dist + self.margin)
+        # print("loss:", losses.mean().item())
+        # print("loss requires_grad:", losses.requires_grad)
+        # print("loss grad_fn:", losses.grad_fn)
         return losses.mean()
 
 def train_model(model, dataloader, criterion, optimizer, num_epochs=10):
     model.train()
     for epoch in range(num_epochs):
         running_loss = 0.0
-        for images, images_pos, images_neg, ids, neg_ids in dataloader:
-            images = images.to(device)
-            images_pos = images_pos.to(device)
-            images_neg = images_neg.to(device)
+        for anchor, positive, negative, *_ in dataloader:
+            anchor, positive, negative = anchor[0].to(device), positive[0].to(device), negative[0].to(device)
             optimizer.zero_grad()
             
             # Forward pass
-            output1, output2, output3 = model(images, images_pos, images_neg)
+            output1, output2, output3 = model(anchor, positive, negative)
             
             # Compute loss
             loss = criterion(output1, output2, output3)
@@ -106,3 +107,4 @@ train_model(
     optimizer=optimizer,
     num_epochs=10
 )
+torch.save(model.state_dict(), "modelo_entrenado.pth")
