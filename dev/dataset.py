@@ -4,8 +4,9 @@ from PIL import Image, ImageFilter, ImageEnhance
 import numpy as np
 from torchvision import transforms
 from torch.utils.data import Dataset, DataLoader
+from matplotlib import pyplot as plt
 
-IMAGES_DIR = "data/yugioh_card_images"
+IMAGES_DIR = "D:/Facu/4to/Redes Neuro/YuGiOh-Card-Recognition/data/yugioh_card_images"
 
 class CustomImageDataset(Dataset):
     def __init__(self, image_dir=IMAGES_DIR, augment_prob=0.5, transform=None):
@@ -83,7 +84,12 @@ class CustomImageDataset(Dataset):
                 image_negative = Image.open(os.path.join(self.image_dir, negative_filename)).convert("RGB")
                 break
 
-        
+        plt.imshow(image_positive)
+        plt.title(f"Imagen positiva: {filename}")
+        plt.axis('off')
+
+        plt.show()
+
         if self.transform:
             image_anchor = self.transform(image_anchor)
             image_positive = self.transform(image_positive)
@@ -101,7 +107,7 @@ class CustomImageDataset(Dataset):
 # dataset = CustomImageDataset(image_dir=os.path.abspath(IMAGES_DIR), transform=transform)
 # dataloader = DataLoader(dataset, batch_size=16, shuffle=True)
 
-# for (images, images_pos, images_neg, ids, neg_ids in dataloader:
+# for (images, ids), (positive, ids), (negative, neg_ids) in dataloader:
 #     print(images.shape)  # [batch, 3, 255, 255]
 #     print(ids)           # IDs string list
 #     print(neg_ids)       # Negative IDs string list

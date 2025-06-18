@@ -2,22 +2,30 @@ import os
 import torch
 import torch.nn as nn
 import torchvision.models as models
+from torchvision.models import ResNet101_Weights
 from torchvision import transforms
 from torch.utils.data import DataLoader
 import torch.nn.functional as F
 
 from dataset import CustomImageDataset
 
-IMAGES_DIR = "data/yugioh_card_images"
+IMAGES_DIR = "D:/Facu/4to/Redes Neuro/YuGiOh-Card-Recognition/data/yugioh_card_images"
 
 class SiameseNetwork(nn.Module):
     def __init__(self):
         super(SiameseNetwork, self).__init__()
         #self.resnet = models.resnet152(pretrained=True)
-        self.resnet = models.resnet101()
+        self.resnet = models.resnet101(weights=ResNet101_Weights.DEFAULT)
         #self.resnet = models.resnet50(pretrained=True)
-
         #self.resnet = torch.nn.Sequential(*(list(self.resnet.children())[:-1]))
+        modules = list(self.resnet.children())[:-1]
+        self.resnet = nn.Sequential(*modules)
+        # Define embedding_dim before using it, for example:
+        embedding_dim = 64  # or another appropriate value
+        self.embedding = nn.Linear(self.resnet[-1].in_features if hasattr(self.resnet[-1], 'in_features') else 2048, embedding_dim)
+        
+        for param in self.resnet.parameters():
+            param.requires_grad = False  # Freeze ResNet layers
 
     def forward_once(self, x):
         '''
@@ -28,7 +36,11 @@ class SiameseNetwork(nn.Module):
         #print(output)
         '''
         #begin = time()
-        output = self.resnet(x)
+        x = self.resnet(x)
+        x = x.view(x.size(0), -1)  # Flatten [B, 2048, 1, 1] -> [B, 2048]
+        x = self.embedding(x)      # Reduce a [B, embedding_dim]
+        x = F.normalize(x, p=2, dim=1)  # Normaliza opcionalmente
+        return x
         #print('Time for forward prop: ', time()-begin)
 
         return output
@@ -70,8 +82,9 @@ def train_model(model, dataloader, criterion, optimizer, num_epochs=10):
             # Compute loss
             loss = criterion(output1, output2, output3)
             
-            print(f"output1 shape: {output1.shape}, output2 shape: {output2.shape}, output3 shape: {output3.shape}")
-            print(f"loss: {loss.item()}")
+            # if epoch <= 2:
+            #     print(f"Epoch {epoch+1}, Batch Loss: {loss.item()}")
+            #     print(f"output1 shape: {output1.shape}, output2 shape: {output2.shape}, output3 shape: {output3.shape}")
 
             # Backward pass and optimization
             loss.backward()
@@ -85,26 +98,25 @@ def train_model(model, dataloader, criterion, optimizer, num_epochs=10):
     print("Training complete!")
     return model
 
-model = SiameseNetwork()
-optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
+if __name__ == '__main__':
+    model = SiameseNetwork()
+    optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
 
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-model = model.to(device)
-for param in model.resnet.parameters():
-    param.requires_grad = True
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    model = model.to(device)
 
-transform = transforms.Compose([
-    transforms.Resize((255,255)),
-    transforms.ToTensor()
-])
-dataset = CustomImageDataset(image_dir=os.path.abspath(IMAGES_DIR), transform=transform)
-dataloader = DataLoader(dataset, batch_size=16, shuffle=True)
+    transform = transforms.Compose([
+        transforms.Resize((255,255)),
+        transforms.ToTensor()
+    ])
+    dataset = CustomImageDataset(image_dir=os.path.abspath(IMAGES_DIR), transform=transform)
+    dataloader = DataLoader(dataset, batch_size=32, shuffle=True, num_workers=4)
 
-train_model(
-    model=model,
-    dataloader=dataloader,
-    criterion=TripletLoss(margin=1.0),
-    optimizer=optimizer,
-    num_epochs=10
-)
-torch.save(model.state_dict(), "modelo_entrenado.pth")
+    train_model(
+        model=model,
+        dataloader=dataloader,
+        criterion=TripletLoss(margin=1.0),
+        optimizer=optimizer,
+        num_epochs=10
+    )
+    torch.save(model.state_dict(), "modelo_entrenado.pth")
