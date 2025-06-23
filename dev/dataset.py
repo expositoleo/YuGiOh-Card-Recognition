@@ -6,14 +6,14 @@ from torchvision import transforms
 from torch.utils.data import Dataset, DataLoader
 from matplotlib import pyplot as plt
 
-IMAGES_DIR = "D:/Facu/4to/Redes Neuro/YuGiOh-Card-Recognition/data/yugioh_card_images"
+IMAGES_DIR = "../data/yugioh_card_images"
 
 class CustomImageDataset(Dataset):
     def __init__(self, image_dir=IMAGES_DIR, augment_prob=0.5, transform=None):
         self.image_dir = image_dir
         self.augment_prob = augment_prob
         self.image_files = [
-            f for f in os.listdir(image_dir)
+            f for f in os.listdir(image_dir) if f.endswith(('.jpg', '.png'))
         ]
         self.transform = transform
 
@@ -72,7 +72,7 @@ class CustomImageDataset(Dataset):
     def __len__(self):
         return len(self.image_files)
 
-    def __getitem__(self, idx):
+    def __getitem__(self, idx, test=False):
         filename = self.image_files[idx]
         img_path = os.path.join(self.image_dir, filename)
         image_anchor = Image.open(img_path).convert("RGB")
@@ -83,12 +83,12 @@ class CustomImageDataset(Dataset):
                 negative_card_id = negative_filename.split(".")[0]
                 image_negative = Image.open(os.path.join(self.image_dir, negative_filename)).convert("RGB")
                 break
-
-        plt.imshow(image_positive)
-        plt.title(f"Imagen positiva: {filename}")
-        plt.axis('off')
-
-        plt.show()
+        
+        if test:
+            plt.imshow(image_positive)
+            plt.title(f"Imagen positiva: {filename}")
+            plt.axis('off')
+            plt.show()
 
         if self.transform:
             image_anchor = self.transform(image_anchor)
